@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"text/template"
 
-	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
 	"github.com/Masterminds/sprig/v3"
+	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
 )
 
 func GetString(event *kube.EnhancedEvent, text string) (string, error) {
@@ -40,6 +40,8 @@ func convertLayoutTemplate(layout map[string]interface{}, ev *kube.EnhancedEvent
 
 func convertTemplate(value interface{}, ev *kube.EnhancedEvent) (interface{}, error) {
 	switch v := value.(type) {
+	case bool:
+		return v, nil
 	case string:
 		rendered, err := GetString(ev, v)
 		if err != nil {
