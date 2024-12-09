@@ -1,11 +1,14 @@
 package sinks
 
 import (
-	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
-	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 	"time"
+
+	"github.com/resmoio/kubernetes-event-exporter/pkg/kube"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestLayoutConvert(t *testing.T) {
@@ -49,4 +52,74 @@ func TestLayoutConvert(t *testing.T) {
 	require.True(t, ok2, "cannot cast message to string")
 
 	require.Equal(t, val2, ev.Message)
+}
+
+func Test_convertTemplate(t *testing.T) {
+	event := &kube.EnhancedEvent{
+		Event: corev1.Event{Message: "foovar"},
+	}
+
+	tests := []struct {
+		name     string
+		value    interface{}
+		ev       *kube.EnhancedEvent
+		expected interface{}
+	}{
+		{
+			name:     "nil",
+			value:    nil,
+			ev:       event,
+			expected: nil,
+		},
+		{
+			name:     "bool",
+			value:    true,
+			ev:       event,
+			expected: true,
+		},
+		{
+			name:     "string",
+			value:    "{{ .Message }}",
+			ev:       event,
+			expected: "foovar",
+		},
+		{
+			name: "map with interface{} keys",
+			value: map[interface{}]interface{}{
+				"message": "{{ .Message }}",
+			},
+			ev: event,
+			expected: map[string]interface{}{
+				"message": "foovar",
+			},
+		},
+		{
+			name: "map",
+			value: map[string]interface{}{
+				"message": "{{ .Message }}",
+			},
+			ev: event,
+			expected: map[string]interface{}{
+				"message": "foovar",
+			},
+		},
+		{
+			name: "slice",
+			value: []interface{}{
+				"{{ .Message }}",
+			},
+			ev: event,
+			expected: []interface{}{
+				"foovar",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := convertTemplate(tt.value, tt.ev)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }
